@@ -1,8 +1,6 @@
 #include "SR_ProcBentPath.h"
 #include "Kismet/KismetMathLibrary.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 ASR_ProcBentPath::ASR_ProcBentPath()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -285,4 +283,3 @@ void ASR_ProcBentPath::BuildMesh()
 	ProcMesh->bCastDynamicShadow    = true;
 	ProcMesh->bCastShadowAsTwoSided = false; // no longer needed when we have outer faces
 }
-PRAGMA_ENABLE_OPTIMIZATION
