@@ -16,6 +16,18 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Mesh")
 	TObjectPtr<UProceduralMeshComponent> ProcMesh;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Attachments")
+	TObjectPtr<USceneComponent> EndTransform;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attachments")
+	TObjectPtr<AActor> EndActor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Attachments")
+	bool PreserveUp = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Transform")
+	FTransform OffsetTransform; 
+
 	// --- Shape params (editable in Details) ---
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Path", meta=(ClampMin="0.01", UIMin="0.01"))
 	float LengthMeters = 10.f;

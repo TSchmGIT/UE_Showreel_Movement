@@ -8,6 +8,9 @@ ASR_ProcBentPath::ASR_ProcBentPath()
 	ProcMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProcMesh"));
 	SetRootComponent(ProcMesh);
 	ProcMesh->bUseAsyncCooking = true;
+
+	EndTransform = CreateDefaultSubobject<USceneComponent>(TEXT("EndTransform"));
+	SetRootComponent(EndTransform);
 }
 
 void ASR_ProcBentPath::OnConstruction(const FTransform& Transform)
@@ -23,6 +26,7 @@ void ASR_ProcBentPath::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 }
 #endif
 
+UE_DISABLE_OPTIMIZATION;
 // Parametric centerline: arc in XY with total arc length = LengthMeters and total yaw = CurveDegrees.
 // Z changes linearly by DropDepthMeters over t in [0,1].
 void ASR_ProcBentPath::SampleCenterline(float T, FVector& OutPos, FVector& OutTangent) const
@@ -35,10 +39,10 @@ void ASR_ProcBentPath::SampleCenterline(float T, FVector& OutPos, FVector& OutTa
 		// Along +X
 		const float X = LengthMeters * T;
 		const float Z = DropDepthMeters * T;
-		OutPos = FVector(X, 0.f, Z);
+		OutPos = OffsetTransform.TransformPosition(FVector(X, 0.f, Z));
 
 		// Tangent: derivative wrt arc parameter (constant in X, linear Z)
-		OutTangent = FVector(LengthMeters, 0.f, DropDepthMeters);
+		OutTangent = OffsetTransform.TransformVector(FVector(LengthMeters, 0.f, DropDepthMeters));
 		OutTangent.Normalize();
 		return;
 	}
@@ -58,16 +62,17 @@ void ASR_ProcBentPath::SampleCenterline(float T, FVector& OutPos, FVector& OutTa
 	const float Y = R * (1.f - CosA);
 	const float Z = DropDepthMeters * T;
 
-	OutPos = FVector(X, (CurveDegrees >= 0.f ? +Y : -Y), Z); // flip side for negative curves
+	OutPos = OffsetTransform.TransformPosition(FVector(X, (CurveDegrees >= 0.f ? +Y : +Y), Z)); // flip side for negative curves
 
 	// Tangent is derivative wrt A, scaled by dA/dt = Theta
 	// d/dA of circle point: ( R*cos(A), R*sin(A) ) then * Theta
 	FVector2D dP_dA(R * CosA, R * SinA);
 	FVector dXY(dP_dA.X * Theta, dP_dA.Y * Theta, DropDepthMeters); // include Z slope (linear)
-	if (CurveDegrees < 0.f) dXY.Y *= -1.f;
+	// if (CurveDegrees < 0.f) dXY.Y *= -1.f;
 
-	OutTangent = dXY.GetSafeNormal();
+	OutTangent = OffsetTransform.TransformVector(dXY.GetSafeNormal());
 }
+UE_ENABLE_OPTIMIZATION;
 
 void ASR_ProcBentPath::BuildMesh()
 {
@@ -179,6 +184,21 @@ void ASR_ProcBentPath::BuildMesh()
 
 		// Ceiling outer: LtOut -> RtOut
 		PushPair(CeilOut,  LtOut, RtOut, -N_Ceil, T, U, 0.f, 1.f);
+
+		if (i == NumRings - 1)
+		{
+			const FVector EndPos = OffsetTransform.InverseTransformPosition(GetTransform().TransformPosition(C));
+
+			FRotator EndTangent = OffsetTransform.InverseTransformVector(T).Rotation();
+			if (PreserveUp)
+				EndTangent.Pitch = 0.0f;
+			
+			const auto EndRot = GetTransform().TransformRotation(EndTangent.Quaternion());
+			
+			EndTransform->SetWorldLocationAndRotation(EndPos, EndRot);
+			if (EndActor && EndActor != this)
+				EndActor->SetActorLocationAndRotation(EndPos, EndRot);
+		}
 	}
 
 	// Build indices for a standard two-verts-per-ring strip,
