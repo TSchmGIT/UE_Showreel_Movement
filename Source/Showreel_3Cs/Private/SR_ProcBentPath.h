@@ -81,6 +81,8 @@ public:
 private:
 	void BuildMesh();
 
+	void UpdateEndActor();
+
 	// Helper to sample centerline point & tangent for 0..1
 	void SampleCenterline(float T, FVector& OutPos, FVector& OutTangent) const;
 };

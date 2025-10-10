@@ -10,11 +10,12 @@ ASR_ProcBentPath::ASR_ProcBentPath()
 	ProcMesh->bUseAsyncCooking = true;
 
 	EndTransform = CreateDefaultSubobject<USceneComponent>(TEXT("EndTransform"));
-	SetRootComponent(EndTransform);
+	EndTransform->SetupAttachment(ProcMesh);
 }
 
 void ASR_ProcBentPath::OnConstruction(const FTransform& Transform)
 {
+	EndTransform->SetupAttachment(ProcMesh);
 	BuildMesh();
 }
 
@@ -196,8 +197,6 @@ void ASR_ProcBentPath::BuildMesh()
 			const auto EndRot = GetTransform().TransformRotation(EndTangent.Quaternion());
 			
 			EndTransform->SetWorldLocationAndRotation(EndPos, EndRot);
-			if (EndActor && EndActor != this)
-				EndActor->SetActorLocationAndRotation(EndPos, EndRot);
 		}
 	}
 
@@ -302,4 +301,18 @@ void ASR_ProcBentPath::BuildMesh()
 	ProcMesh->SetCastShadow(true);
 	ProcMesh->bCastDynamicShadow    = true;
 	ProcMesh->bCastShadowAsTwoSided = false; // no longer needed when we have outer faces
+
+	UpdateEndActor();
+}
+
+void ASR_ProcBentPath::UpdateEndActor()
+{
+	if (EndActor && EndActor != this)
+	{
+		const FTransform EndWorldTransform = EndTransform->K2_GetComponentToWorld();
+		EndActor->SetActorLocationAndRotation(EndWorldTransform.GetLocation(), EndWorldTransform.GetRotation());
+
+		if (ASR_ProcBentPath* path = Cast<ASR_ProcBentPath>(EndActor))
+			path->UpdateEndActor();
+	}
 }
